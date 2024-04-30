@@ -1,0 +1,50 @@
+pipeline {
+    agent any
+    
+    environment {
+        IMAGE_NAME = "full-app-automation"
+        ECR_URL = "471112601493.dkr.ecr.us-east-1.amazonaws.com"
+        AWS_REGION = "us-east-1"
+        IMAGE_TAG = "${IMAGE_NAME}:${BUILD_NUMBER}"
+        K8S_FOLDER = "K8s"
+    }
+
+    stages {
+        stage('Build Docker Image With Tag & login AWS ECR') {
+            steps {
+                script {
+                    echo "test"
+                    sh '''
+                    IMAGE_TAG="${IMAGE_TAG}"
+                    ls
+                    docker build -t ${ECR_URL}/${IMAGE_TAG} ./docker-compose/frontend
+                    ECR_URL="${ECR_URL}"
+                    AWS_REGION="${AWS_REGION}"
+                    aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URL}
+                    '''
+                }
+            }
+        }
+        stage(' Push Docker Image to ECR ') {
+            steps {
+                script {
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWS credentails']]){
+                    sh ''' 
+                    aws configure 
+                    ECR_URL="${ECR_URL}"
+                    echo "Push Docker image to ECR"
+                    docker push ${ECR_URL}/${IMAGE_TAG}
+                    '''
+                    }
+                }
+            }
+        }
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    sh "kubectl apply -f ${K8S_FOLDER}"
+                }
+            }
+        }
+    }
+}

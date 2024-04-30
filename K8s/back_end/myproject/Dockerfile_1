@@ -1,0 +1,31 @@
+
+FROM python:3.10-alpine as base
+
+ENV PYTHONUNBUFFERED 1
+
+# Install necessary build dependencies
+RUN apk add --update --virtual .build-deps \
+    build-base \
+    mariadb-dev \
+    python3-dev
+
+WORKDIR /app/myproject
+
+# Copy requirements and install dependencies
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
+
+# Now multistage build
+FROM python:3.10-alpine
+
+# Install MySQL client library
+RUN apk add mariadb-connector-c
+
+# Copy installed dependencies from the base stage
+COPY --from=base /usr/local/lib/python3.10/site-packages/ /usr/local/lib/python3.10/site-packages/
+COPY --from=base /usr/local/bin/ /usr/local/bin/
+
+# Set the working directory and copy the application code
+WORKDIR /app/myproject
+COPY . ./
+

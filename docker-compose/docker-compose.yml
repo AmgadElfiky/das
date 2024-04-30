@@ -1,0 +1,50 @@
+version: '3'
+
+services:
+  reactjs:
+    restart: always
+    container_name: blog_frontend
+    build:
+      context: ./frontend/
+      dockerfile: Dockerfile    
+    ports:
+      - "3000:3000"
+    command: ["nginx", "-g", "daemon off;"]
+    stdin_open: true
+    networks:
+      - db-net
+  db:
+    restart: always
+    container_name: blog_db
+    image: mysql
+    environment:
+      - MYSQL_HOST=localhost
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=userdb
+      - MYSQL_ROOT_PASSWORD=root
+    ports:
+      - "3302:3306"
+    networks:
+      - db-net
+
+  django:
+    restart: always
+    container_name: blog_backend
+    command: >
+      sh -c "python manage.py makemigrations &&
+             python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    build:
+      context: ./myproject/
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    networks:
+      - db-net
+
+networks:
+  db-net:
+    driver: bridge
+
